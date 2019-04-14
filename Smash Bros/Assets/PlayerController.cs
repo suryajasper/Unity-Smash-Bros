@@ -19,7 +19,7 @@ public class PlayerController : MonoBehaviour
     [HideInInspector] public bool knockedBack;
     [HideInInspector] public float knockSpeed;
     private int extraJumps;
-    private KeyCode left, right, jump, attack, down, longAttack;
+    private KeyCode left, right, jump, attack, down, longAttack, shield;
     private int direction;
     private int lastScore;
     [HideInInspector] public int score;
@@ -27,10 +27,15 @@ public class PlayerController : MonoBehaviour
     [HideInInspector] public bool downB = false;
     private bool firstRun;
     private float startCoolDown;
-
+    private float startShieldCoolDown;
+    private float shieldCoolDown;
+    private bool shieldOn;
+   
+    [HideInInspector] public bool shouldShield;
     public float startSpeed;
     public Animator animator;
     public GameObject otherplayer;
+    public GameObject shieldObject;
     public int knockback;
     public int jumpforce;
     public LayerMask whatIsGround;
@@ -39,15 +44,20 @@ public class PlayerController : MonoBehaviour
     public int extraJumpsValue;
     public GameObject bullet;
     public float coolDownTime;
-    [Header("Controls")] public string rightVal;
+    [Header("Controls")]
+    [Space]
+    public string rightVal;
     public string leftVal;
     public string jumpVal;
     public string attackVal;
     public string downVal;
-    public string longAttackVal; 
+    public string longAttackVal;
+    public string shieldVal;
 
     void Start()
     {
+        startShieldCoolDown = Time.time;
+        shieldCoolDown = Time.time;
         startCoolDown = Time.time;
         score = 0;
         lastScore = 0;
@@ -75,6 +85,11 @@ public class PlayerController : MonoBehaviour
             down = KeyCode.DownArrow;
         if (downVal.Equals("s"))
             down = KeyCode.S;
+        if (shieldVal.Equals("q"))
+            shield = KeyCode.Q;
+        if (shieldVal.Equals("/"))
+            shield = KeyCode.Slash;
+
         direction = 1;
         //Physics2D.IgnoreLayerCollision(8,8);
         speed = startSpeed;
@@ -85,13 +100,13 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         if (Input.GetKey(down)) {
-            rb.velocity = new Vector2(0F, -10F);
+            rb.velocity = new Vector2(0F, -25F);
             if (Input.GetKey(attack)) {
                 animator.SetBool("downB", true);
                 if ((transform.position.y - otherplayer.transform.position.y <= 0.5) &&
                 (Mathf.Abs(transform.position.x - otherplayer.transform.position.x) <= 1) && 
-                    (transform.position.y - otherplayer.transform.position.y > 0))
-                    score += 15;
+                    (transform.position.y - otherplayer.transform.position.y > 0) && (otherplayer.GetComponent<PlayerController>().shouldShield == false))
+                    score += 8;
             }
         }
         if (score > lastScore) {
@@ -101,7 +116,7 @@ public class PlayerController : MonoBehaviour
             scoreField.text = score + "%";
             lastScore = score;
         }
-        if ((Mathf.Abs(transform.position.x - otherplayer.transform.position.x) + Mathf.Abs(transform.position.y - otherplayer.transform.position.y) <= 1.5) && Input.GetKeyDown(attack)) {
+        if ((Mathf.Abs(transform.position.x - otherplayer.transform.position.x) + Mathf.Abs(transform.position.y - otherplayer.transform.position.y) <= 1.5) && Input.GetKeyDown(attack) && (otherplayer.GetComponent<PlayerController>().shouldShield == false)) {
             animator.SetBool("isAttacking", true);
             otherplayer.GetComponent<PlayerController>().knockedBack = true;
             if (moveInput == 0F) {
@@ -111,6 +126,30 @@ public class PlayerController : MonoBehaviour
                 otherplayer.GetComponent<PlayerController>().knockSpeed = moveInput * 600;
                 score += 7;
             }
+        }
+        if (Input.GetKey(shield) && (Time.time - shieldCoolDown > 3))
+        {
+            if (!shieldOn)
+                startShieldCoolDown = Time.time;
+            if (Time.time - startShieldCoolDown <= 3)
+            {
+                shouldShield = true;
+                shieldObject.SetActive(true);
+                shieldOn = true;
+            }
+            else
+            {
+                shieldObject.SetActive(false);
+                shouldShield = false;
+            }
+
+        }
+        if (Input.GetKeyUp(shield))
+        {
+            shieldCoolDown = Time.time;
+            shieldOn = false;
+            shieldObject.SetActive(false);
+            shouldShield = false;
         }
         if (Input.GetKeyDown(longAttack) && (Time.time - startCoolDown > coolDownTime))
         {
