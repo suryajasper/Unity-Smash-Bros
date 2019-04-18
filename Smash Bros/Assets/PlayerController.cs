@@ -11,7 +11,7 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private bool isRight;
     private int knockedtimes;
-    [HideInInspector] public GameObject launchedBullet;
+    //[HideInInspector] public GameObject launchedBullet;
     [HideInInspector] public bool spacecontrols;
     private bool isGrounded;
     [HideInInspector] public float checkRadius = 0F;
@@ -19,7 +19,7 @@ public class PlayerController : MonoBehaviour
     [HideInInspector] public bool knockedBack;
     [HideInInspector] public float knockSpeed;
     private int extraJumps;
-    private KeyCode left, right, jump, attack, down, longAttack, shield;
+    private KeyCode attack, longAttack, shield;
     private int direction;
     private int lastScore;
     [HideInInspector] public int score;
@@ -30,7 +30,10 @@ public class PlayerController : MonoBehaviour
     private float startShieldCoolDown;
     private float shieldCoolDown;
     private bool shieldOn;
-   
+    private float size = 0.2834865F;
+    private bool sideB = false;
+
+    [Range(1F,5F)]public float shieldcoolDownTime;
     [HideInInspector] public bool shouldShield;
     public float startSpeed;
     public Animator animator;
@@ -43,6 +46,7 @@ public class PlayerController : MonoBehaviour
     public Text scoreField;
     public int extraJumpsValue;
     public GameObject bullet;
+    public Transform firepoint;
     public float coolDownTime;
     [Header("Controls")]
     [Space]
@@ -61,18 +65,7 @@ public class PlayerController : MonoBehaviour
         startCoolDown = Time.time;
         score = 0;
         lastScore = 0;
-        if (leftVal.Equals("left"))
-            left = KeyCode.LeftArrow;
-        if (leftVal.Equals("a"))
-            left = KeyCode.A;
-        if (rightVal.Equals("right"))
-            right = KeyCode.RightArrow;
-        if (rightVal.Equals("d"))
-            right = KeyCode.D;
-        if (jumpVal.Equals("up"))
-            jump = KeyCode.UpArrow;
-        if (jumpVal.Equals("w"))
-            jump = KeyCode.W;
+
         if (attackVal.Equals("lshift"))
             attack = KeyCode.LeftShift;
         if (attackVal.Equals("rshift"))
@@ -81,10 +74,6 @@ public class PlayerController : MonoBehaviour
             longAttack = KeyCode.LeftAlt;
         if (longAttackVal.Equals("ralt"))
             longAttack = KeyCode.RightAlt;
-        if (downVal.Equals("down"))
-            down = KeyCode.DownArrow;
-        if (downVal.Equals("s"))
-            down = KeyCode.S;
         if (shieldVal.Equals("q"))
             shield = KeyCode.Q;
         if (shieldVal.Equals("/"))
@@ -99,7 +88,7 @@ public class PlayerController : MonoBehaviour
     }
     void Update()
     {
-        if (Input.GetKey(down)) {
+        if (Input.GetKey(downVal)) {
             rb.velocity = new Vector2(0F, -25F);
             if (Input.GetKey(attack)) {
                 animator.SetBool("downB", true);
@@ -127,25 +116,30 @@ public class PlayerController : MonoBehaviour
                 score += 7;
             }
         }
-        if (Input.GetKey(shield) && (Time.time - shieldCoolDown > 3))
+        if (Input.GetKey(shield) && (Time.time - shieldCoolDown > shieldcoolDownTime))
         {
-            if (!shieldOn)
+            if (!shouldShield)
                 startShieldCoolDown = Time.time;
             if (Time.time - startShieldCoolDown <= 3)
             {
                 shouldShield = true;
                 shieldObject.SetActive(true);
+                if (size > 0.01)
+                    size -= 0.01F/shieldcoolDownTime;
+                shieldObject.transform.localScale = new Vector2(size, size);
                 shieldOn = true;
             }
             else
             {
                 shieldObject.SetActive(false);
                 shouldShield = false;
+                size = 0.2834865F;
             }
 
         }
         if (Input.GetKeyUp(shield))
         {
+            size = 0.2834865F;
             shieldCoolDown = Time.time;
             shieldOn = false;
             shieldObject.SetActive(false);
@@ -154,13 +148,8 @@ public class PlayerController : MonoBehaviour
         if (Input.GetKeyDown(longAttack) && (Time.time - startCoolDown > coolDownTime))
         {
             bulletnum++;
-            Instantiate(bullet);
-            bullet.GetComponent<bulletScript>().direction = direction;
+            Instantiate(bullet, firepoint.position, firepoint.rotation);
             bullet.GetComponent<bulletScript>().launchedObject = gameObject;
-            bullet.transform.position = transform.position;
-            Vector3 scale = bullet.transform.localScale;
-            scale.x *= direction*-1;
-            bullet.transform.localScale = scale;
             startCoolDown = Time.time;
         }
         animator.SetBool("isAttacking", false);
@@ -174,32 +163,50 @@ public class PlayerController : MonoBehaviour
         }
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, checkRadius, whatIsGround);
 
-        if (Input.GetKey(left) || Input.GetKey(right))
-            speed += 0.01F;
-        if (Input.GetKeyDown(left))
+        if (Input.GetKeyDown(leftVal))
+        {
             moveInput = -1;
-        if (Input.GetKeyDown(right))
+            if (Input.GetKey(attack))
+            {
+                rb.velocity = new Vector2(-startSpeed*3, 0);
+                sideB = true;
+            }
+        }
+        if (Input.GetKeyDown(rightVal))
+        {
             moveInput = 1;
-        if (Input.GetKeyUp(left) || Input.GetKeyUp(right)){
+            if (Input.GetKey(attack))
+            {
+                rb.velocity = new Vector2(startSpeed*3, 0);
+                sideB = true;
+            }
+        }
+        if (Input.GetKeyUp(leftVal) || Input.GetKeyUp(rightVal)){
             moveInput = 0;
             speed = startSpeed;
         }
+        if (Input.GetKey(leftVal) || Input.GetKey(rightVal))
+        {
+            speed += 0.01F;
+        }
+        if (Input.GetKeyUp(attack)) sideB = false;
         animator.SetFloat("speed", Mathf.Abs(moveInput));
-        rb.velocity = new Vector2(moveInput * speed, rb.velocity.y);
+        if (!sideB)
+            rb.velocity = new Vector2(moveInput * speed, rb.velocity.y);
 
         if (isGrounded) {
             animator.SetBool("isJumping", false);
             extraJumps = extraJumpsValue;
             animator.SetBool("downB", false);
         }
-        if (Input.GetKeyDown(jump) && extraJumps > 0) {
+        if (Input.GetKeyDown(jumpVal) && extraJumps > 0) {
             animator.SetBool("isJumping", true);
             rb.velocity = Vector2.up * jumpforce;
             extraJumps--;
             if ((Input.GetKey(attack)) && (otherplayer.transform.position.y - transform.position.y <= 0.5) &&
              (Mathf.Abs(transform.position.x - otherplayer.transform.position.x) <= 1) && (transform.position.y - otherplayer.transform.position.y > 0))
                 score += 15;
-        } else if (Input.GetKeyDown(jump) && extraJumps == 0 && isGrounded == true) {
+        } else if (Input.GetKeyDown(jumpVal) && extraJumps == 0 && isGrounded == true) {
             animator.SetBool("isJumping", true);
             rb.velocity = Vector2.up * jumpforce;
         }
@@ -215,8 +222,6 @@ public class PlayerController : MonoBehaviour
     {
         direction *= -1;
         isRight = !isRight;
-        Vector3 scale = transform.localScale;
-        scale.x *= -1;
-        transform.localScale = scale;
+        transform.Rotate(0f, 180f, 0f);
     }
 }
